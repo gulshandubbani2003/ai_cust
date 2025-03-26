@@ -1,0 +1,62 @@
+
+package com.jobreadyprogrammer;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.HttpResponse;
+
+import java.io.IOException;
+
+@SpringBootApplication
+@Controller
+public class TwilioCallHandler {
+
+    @Value("${elevenlabs.api.key}")
+    private String ELEVENLABS_API_KEY;
+
+    @Value("${elevenlabs.conversation.id}")
+    private String CONVERSATION_ID;
+
+    @PostMapping("/call-ended")
+    @ResponseBody
+    public String handleCallEnd(@RequestParam("CallSid") String callSid) {
+        try {
+            return processCallEnd(callSid);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "<Response><Say>Error processing call end.</Say></Response>";
+        }
+    }
+
+    private String processCallEnd(String callSid) throws IOException {
+        String url = "https://api.elevenlabs.io/v1/convai/conversations/" + CONVERSATION_ID;
+        
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpGet request = new HttpGet(url);
+            request.addHeader("xi-api-key", ELEVENLABS_API_KEY);
+            request.addHeader("Content-Type", "application/json");
+
+            HttpResponse response = httpClient.execute(request);
+            String responseBody = EntityUtils.toString(response.getEntity());
+            
+            System.out.println("Conversation Details: " + responseBody);
+            System.out.println("Call SID: " + callSid);
+            
+            return "<Response><Say>Call ended. Data processed.</Say></Response>";
+        }
+    }
+
+    public static void main(String[] args) {
+        SpringApplication.run(TwilioCallHandler.class, args);
+    }
+}
