@@ -1,0 +1,44 @@
+package com.jobreadyprogrammer;
+
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import java.io.IOException;
+
+public class ElevenLabsClient {
+    private static final String API_KEY = "sk_aaf926d6b6703e7af258941330f270d1a31fff5a6c1aea93";
+    private static final String URL = "https://api.elevenlabs.io/v1/text-to-speech/CwhRBWXzGAHq8TQ4Fs17";
+
+    public static byte[] fetchData(String text) throws IOException {
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            HttpPost post = new HttpPost(URL);
+            post.setHeader("xi-api-key", API_KEY);
+            post.setHeader("Content-Type", "application/json");
+
+            String jsonPayload = String.format("{\"text\": \"%s\", \"model_id\": \"eleven_monolingual_v1\", " +
+                    "\"voice_settings\": {\"stability\": 0.5, \"similarity_boost\": 0.5}}", text);
+            post.setEntity(new StringEntity(jsonPayload));
+
+            return client.execute(post, response -> {
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode == 200) {
+                    return EntityUtils.toByteArray(response.getEntity());
+                } else {
+                    String responseBody = EntityUtils.toString(response.getEntity());
+                    throw new IOException("API request failed: " + response.getStatusLine() + ", Response Body: " + responseBody);
+                }
+            });
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            byte[] data = fetchData("Hello from Eleven Labs");
+            System.out.println("Fetched data length: " + data.length);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
