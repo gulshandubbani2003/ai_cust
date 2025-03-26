@@ -1,0 +1,30 @@
+package com.jobreadyprogrammer;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession; // Add this import
+
+public class SparkPostProcessing {
+
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("ElevenLabsPostProcessing")
+                .config("spark.mongodb.input.uri", "mongodb://localhost:27017/elevenlabs_db.audio_data")
+                .config("spark.mongodb.output.uri", "mongodb://localhost:27017/elevenlabs_db.processed_data")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read()
+                .format("com.mongodb.spark.sql.DefaultSource")
+                .load();
+
+        Dataset<Row> processedDF = df.groupBy("source").count();
+
+        processedDF.write()
+                .format("com.mongodb.spark.sql.DefaultSource")
+                .mode("append")
+                .save();
+
+        spark.stop(); // Good practice to stop the SparkSession
+    }
+}
