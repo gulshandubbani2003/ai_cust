@@ -1,70 +1,29 @@
 package com.jobreadyprogrammer;
 
 import org.apache.kafka.clients.producer.*;
-import org.apache.kafka.common.serialization.StringSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.Properties; // Add this import
 
 public class KafkaProducerExample {
+
     private static final String BOOTSTRAP_SERVERS = "localhost:9092";
     private static final String TOPIC = "elevenlabs-topic";
 
-    public static void sendToKafka(byte[] data) {
+    public static void sendMessage(String message) {
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
-        props.put(ProducerConfig.CLIENT_ID_CONFIG, "ElevenLabsProducer");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
 
-        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
-            // Convert byte array to Base64 encoded string
-            String base64Data = Base64.getEncoder().encodeToString(data);
+        KafkaProducer<String, String> producer = new KafkaProducer<>(props);
 
-            // Create a structured message
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, Object> message = new HashMap<>();
-            message.put("source", "elevenlabs");
-            message.put("audio_data", base64Data);
-            message.put("data_length", data.length);
-
-            // Convert message to JSON string
-            String jsonMessage = mapper.writeValueAsString(message);
-
-            ProducerRecord<String, String> record = new ProducerRecord<>(TOPIC, jsonMessage);
-            
-            producer.send(record, (metadata, exception) -> {
-                if (exception != null) {
-                    System.err.println("Failed to send message: " + exception.getMessage());
-                    exception.printStackTrace();
-                } else {
-                    System.out.println("Message sent successfully to topic " + metadata.topic() + 
-                                       " partition " + metadata.partition() + 
-                                       " offset " + metadata.offset());
-                }
-            }).get(); // Synchronous send to ensure delivery
-
-            producer.flush();
-        } catch (Exception e) {
-            System.err.println("Kafka Producer Error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    public static void main(String[] args) {
         try {
-            byte[] data = ElevenLabsClient.fetchData("Test message");
-            sendToKafka(data);
-        } catch (IOException e) {
-            System.err.println("IO Error in KafkaProducerExample: " + e.getMessage());
-            e.printStackTrace();
+            ProducerRecord<String, String> record = new ProducerRecord<>(TOPIC, message);
+            producer.send(record);
+            System.out.println("Message sent to Kafka: " + message);
         } catch (Exception e) {
-            System.err.println("General Error in KafkaProducerExample: " + e.getMessage());
             e.printStackTrace();
+        } finally {
+            producer.close(); // Good practice to close the producer
         }
     }
 }
