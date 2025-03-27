@@ -1,62 +1,44 @@
-
 package com.jobreadyprogrammer;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.twilio.Twilio;
+import com.twilio.rest.api.v2010.account.Recording;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
-import org.apache.http.HttpResponse;
-
-import java.io.IOException;
+import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
-@Controller
+@RestController
 public class TwilioCallHandler {
 
-    @Value("${elevenlabs.api.key}")
-    private String ELEVENLABS_API_KEY;
-
-    @Value("${elevenlabs.conversation.id}")
-    private String CONVERSATION_ID;
-
-    @PostMapping("/call-ended")
-    @ResponseBody
-    public String handleCallEnd(@RequestParam("CallSid") String callSid) {
-        try {
-            return processCallEnd(callSid);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "<Response><Say>Error processing call end.</Say></Response>";
-        }
-    }
-
-    private String processCallEnd(String callSid) throws IOException {
-        String url = "https://api.elevenlabs.io/v1/convai/conversations/" + CONVERSATION_ID;
-        
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet request = new HttpGet(url);
-            request.addHeader("xi-api-key", ELEVENLABS_API_KEY);
-            request.addHeader("Content-Type", "application/json");
-
-            HttpResponse response = httpClient.execute(request);
-            String responseBody = EntityUtils.toString(response.getEntity());
-            
-            System.out.println("Conversation Details: " + responseBody);
-            System.out.println("Call SID: " + callSid);
-            
-            return "<Response><Say>Call ended. Data processed.</Say></Response>";
-        }
-    }
+    // Use environment variables for security (recommended)
+    private static final String ACCOUNT_SID = System.getenv("TWILIO_ACCOUNT_SID") != null 
+        ? System.getenv("TWILIO_ACCOUNT_SID") 
+        : "AC95aae076ff88b98067ccd07f0e8afb85"; // Your Account SID
+    private static final String AUTH_TOKEN = System.getenv("TWILIO_AUTH_TOKEN") != null 
+        ? System.getenv("TWILIO_AUTH_TOKEN") 
+        : "c1ff0aa92d77e7baffd65ae45857a037"; // Your Auth Token
 
     public static void main(String[] args) {
         SpringApplication.run(TwilioCallHandler.class, args);
+    }
+
+    @PostMapping("/call-ended")
+    public String callEnded(@RequestParam("CallSid") String callSid, @RequestParam("RecordingSid") String recordingSid) {
+        // Initialize the Twilio client
+        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+
+        // Fetch the recording for the call
+        Recording recording = Recording.fetcher(recordingSid).fetch();
+        String recordingUrl = "https://api.twilio.com" + recording.getUri();
+
+        // Prepare the conversation details
+        String conversationDetails = "CallSid: " + callSid + ", Recording URL: " + recordingUrl;
+
+        // Send the conversation details to Kafka
+        KafkaProducerExample.sendMessage(conversationDetails);
+
+        return "<Response><Say>Thank you for calling. Goodbye.</Say></Response>";
     }
 }
